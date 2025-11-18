@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Galería Virtual — Fotografías Históricas de México</title>
+<style>
+  :root{
+    --cafe-osc:#4b4038; --cafe-med:#6d6259; --cafe-claro:#efe3d4; --bg:#f7f3ef; --texto:#2f2b28;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family: 'Georgia', serif;background:linear-gradient(180deg,var(--cafe-claro),var(--bg));color:var(--texto);}
+  header{background:linear-gradient(90deg,var(--cafe-osc),var(--cafe-med));color:white;padding:46px 20px;text-align:center;box-shadow:0 6px 20px rgba(0,0,0,0.12)}
+  .title{font-size:2.8rem;letter-spacing:1px;margin:0;font-weight:700}
+  .subtitle{margin-top:6px;font-size:0.95rem;opacity:0.95}
+
+  .container{max-width:1200px;margin:28px auto;padding:0 18px}
+  .gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
+  .card{background:#fff;border-radius:12px;padding:12px;border:1px solid rgba(75,64,56,0.08);box-shadow:0 6px 18px rgba(71,61,54,0.06);cursor:pointer;transition:transform .18s,box-shadow .18s}
+  .card:hover{transform:translateY(-6px);box-shadow:0 18px 36px rgba(71,61,54,0.12)}
+  .thumb{width:100%;height:150px;border-radius:10px;object-fit:cover;background:#ddd;display:block}
+  .caption{margin-top:10px;font-weight:700;color:var(--cafe-osc);font-size:1rem}
+  .small{font-weight:400;color:#6b6159;font-size:0.85rem;margin-top:6px}
+
+  /* overlay / panel */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:1000}
+  .panel{width:100%;max-width:1100px;background:#fff;border-radius:14px;display:flex;gap:18px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,0.25)}
+  .panel-left{flex:1;padding:26px;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#fff,#fbf9f7)}
+  .panel-left img{max-width:100%;max-height:640px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.12)}
+  .panel-right{width:420px;background:linear-gradient(180deg,var(--cafe-claro),#fff);padding:28px;border-left:1px solid rgba(0,0,0,0.04)}
+  .panel-right h3{font-size:1.6rem;color:var(--cafe-osc);margin:0 0 10px;font-family:'Georgia';letter-spacing:0.2px}
+  .panel-right .desc{line-height:1.5;color:var(--texto);margin-top:10px;font-size:0.98rem}
+  .panel-right ul{margin:12px 0 0 18px;color:var(--texto);line-height:1.45}
+  .controls{margin-top:18px;display:flex;gap:12px;align-items:center}
+  .btn{background:var(--cafe-osc);color:white;padding:10px 12px;border-radius:8px;border:none;cursor:pointer;font-weight:700}
+  .btn.secondary{background:transparent;color:var(--cafe-osc);border:1px solid rgba(75,64,56,0.18)}
+  /* typewriter (we'll use JS to type multiline) */
+  .typewriter-cursor{display:inline-block;width:3px;background:var(--cafe-osc);margin-left:6px;animation:blink 0.8s step-end infinite}
+  @keyframes blink{50%{opacity:0}}
+  /* responsive */
+  @media (max-width:980px){.panel{flex-direction:column}.panel-right{width:100%}}
+  /* small footer note */
+  .note{margin-top:16px;text-align:center;color:#6b6159;font-size:0.9rem}
+</style>
+</head>
+<body>
+  <header>
+    <div class="title">Galería Virtual — Fotografías Históricas de México</div>
+    <div class="subtitle">Haz clic en una foto; al abrirla verás título grande, descripción, puntos importantes y un audio breve para reproducir.</div>
+  </header>
+
+  <main class="container">
+    <section style="margin-top:22px">
+      <div class="gallery" id="gallery">
+        <!-- 20 tarjetas: reemplaza FOTO1.jpg ... FOTO20.jpg por tus imágenes -->
+        <!-- Cards will be injected by JS for clarity -->
+      </div>
+
+      <div class="note">Coloca tus archivos de imagen (FOTO1.jpg ... FOTO20.jpg) y tus audios (AUDIO1.mp3 ... AUDIO20.mp3) en la misma carpeta que este archivo.</div>
+    </section>
+  </main>
+
+  <!-- overlay panel -->
+  <div id="overlay" class="overlay" onclick="closePanel(event)">
+    <div class="panel" onclick="event.stopPropagation()">
+      <div class="panel-left">
+        <img id="panel-img" src="" alt="Imagen seleccionada">
+      </div>
+      <div class="panel-right">
+        <h3 id="panel-title"></h3>
+        <div id="panel-desc" class="desc"></div>
+        <h4 style="margin-top:14px;margin-bottom:8px;color:var(--cafe-osc)">Puntos importantes</h4>
+        <ul id="panel-points"></ul>
+
+        <div class="controls">
+          <audio id="panel-audio" controls style="width:100%">
+            <source id="panel-audio-src" src="" type="audio/mpeg">
+            Tu navegador no soporta audio.
+          </audio>
+        </div>
+
+        <div class="controls" style="margin-top:12px">
+          <button class="btn" onclick="pauseAudio()">Pausar</button>
+          <button class="btn secondary" onclick="closePanel()">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* === Datos: títulos, descripciones largas y puntos importantes + placeholder audio filenames ===
+   Orden exacto solicitado por el usuario.
+*/
+
+const items = [
+  {
+    title: "La Decena Trágica (1913)",
+    desc: `La Decena Trágica se refiere a los diez días de combates y represión ocurridos en la Ciudad de México en febrero de 1913, que culminaron con el golpe contra el presidente Francisco I. Madero. Las fotografías de ese periodo muestran escenas de violencia urbana, columnas militares y ciudadanos afectados; son fundamentales para entender cómo se fracturó la estabilidad política de la época y las consecuencias que esto tuvo para el rumbo del país.`,
+    points: [
+      "Golpe de estado y enfrentamientos en la capital (febrero 1913).",
+      "Imágenes de la represión y la militarización urbana.",
+      "Consecuencias políticas y sociales posteriores.",
+      "Documentos visuales esenciales para la memoria histórica."
+    ],
+    audio: "AUDIO1.mp3"
+  },
+  {
+    title: "Toma de Zacatecas (1914)",
+    desc: `La Toma de Zacatecas (junio de 1914) fue una de las batallas más decisivas de la Revolución Mexicana. La fotografía de este evento captura la magnitud del enfrentamiento, la organización militar y el impacto territorial del conflicto. Es un registro que permite estudiar tácticas, liderazgo y el costo humano de la guerra en regiones clave.`,
+    points: [
+      "Victoria estratégica de las fuerzas revolucionarias.",
+      "Impacto en el control territorial del norte del país.",
+      "Registro visual de tácticas y logística militar.",
+      "Relevancia para la derrota del ejército federal en la región."
+    ],
+    audio: "AUDIO2.mp3"
+  },
+  {
+    title: "Soldaderas en la Revolución",
+    desc: `Las soldaderas aparecen en múltiples fotografías como compañeras, enfermeras, cocineras y, en algunos casos, combatientes. Este conjunto de imágenes evidencia el papel multifacético de las mujeres durante la Revolución: apoyo logístico, participación activa y preservación de historias familiares y comunitarias.`,
+    points: [
+      "Apoyo logístico y sanitario a las tropas.",
+      "Participación femenina en roles diversos, incluso combatientes.",
+      "Símbolo de resistencia y presencia social.",
+      "Fuente clave para estudios de género en historia."
+    ],
+    audio: "AUDIO3.mp3"
+  },
+  {
+    title: "Emiliano Zapata en Cuernavaca",
+    desc: `Fotografías de Emiliano Zapata y su entorno en Morelos ofrecen una perspectiva del líder agrario y su vínculo con las comunidades campesinas. Las imágenes reflejan liderazgo, demandas agrarias y la intensidad de la lucha por la tierra, elementos centrales del movimiento zapatista.`,
+    points: [
+      "Liderazgo campesino por la reforma agraria.",
+      "Relación con comunidades locales en Morelos.",
+      "Síntesis de demandas sociales: tierra y justicia.",
+      "Imágenes como evidencia del movimiento zapatista."
+    ],
+    audio: "AUDIO4.mp3"
+  },
+  {
+    title: "Ferrocarril en la Revolución",
+    desc: `El ferrocarril fue infraestructura clave para el traslado de tropas y suministros durante la Revolución. Las fotografías de estaciones, trenes y vías muestran cómo la red ferroviaria condicionó movimientos militares, comunicación y cambios económicos a lo largo del conflicto.`,
+    points: [
+      "Eje logístico para movilización de fuerzas.",
+      "Conexión entre regiones y refuerzo de campañas militares.",
+      "Influencia en la economía y comercio regional.",
+      "Registro técnico y social de la modernización ferroviaria."
+    ],
+    audio: "AUDIO5.mp3"
+  },
+  {
+    title: "Porfiriato: Avenida Madero",
+    desc: `Imágenes de la Avenida Madero y otras arterias en la época del Porfiriato muestran la modernización urbana y la transformación del paisaje citadino. La fotografía permite observar la arquitectura, el transporte y la presencia de una élite urbana, así como las desigualdades que coexistieron con estos cambios.`,
+    points: [
+      "Modernización urbana y arquitectura porfiriana.",
+      "Movilidad y diseño de espacios públicos.",
+      "Contrastes sociales entre modernidad y desigualdad.",
+      "Fuente visual para estudiar el Porfiriato en la ciudad."
+    ],
+    audio: "AUDIO6.mp3"
+  },
+  {
+    title: "Fundación del IPN (1936)",
+    desc: `La fundación del Instituto Politécnico Nacional representó un hito en la educación técnica y profesional en México. Fotografías de su creación, obras y primeros estudiantes documentan la apuesta estatal por la formación técnica y el desarrollo científico-técnico con impacto social en amplios sectores.`,
+    points: [
+      "Creación de una institución para la formación técnica.",
+      "Impacto en la educación y el desarrollo industrial.",
+      "Registro de estudiantes y obras fundacionales.",
+      "Símbolo de inversión en capital humano."
+    ],
+    audio: "AUDIO7.mp3"
+  },
+  {
+    title: "Terremoto de 1985",
+    desc: `Las imágenes del terremoto del 19 de septiembre de 1985 muestran la devastación urbana, edificios colapsados y la impresionante movilización social de rescate. Estas fotografías son testimonio de la fragilidad urbana y de la solidaridad ciudadana que emergió en una de las peores catástrofes de la historia moderna de México.`,
+    points: [
+      "Destrucción y pérdida humanas en la Ciudad de México.",
+      "Movilización ciudadana y acciones de rescate.",
+      "Lecciones sobre planificación y prevención urbana.",
+      "Documentación visual del impacto social de la catástrofe."
+    ],
+    audio: "AUDIO8.mp3"
+  },
+  {
+    title: "Marcha del Silencio (1968)",
+    desc: `La Marcha del Silencio es una imagen emblemática del movimiento estudiantil de 1968: manifestantes marchando en señal de protesta pacífica y memoria. Las fotografías de esas movilizaciones ayudan a reconstruir demandas políticas, represión y las circunstancias que marcaron una etapa clave para la sociedad mexicana.`,
+    points: [
+      "Protesta estudiantil por demandas democráticas y sociales.",
+      "Imágenes de la movilización y la represión que siguió.",
+      "Significado político y memoria colectiva.",
+      "Registro de un momento clave en la historia contemporánea."
+    ],
+    audio: "AUDIO9.mp3"
+  },
+  {
+    title: "Juegos Olímpicos del 68",
+    desc: `Los Juegos Olímpicos de 1968 marcaron una inusitada visibilidad internacional para México. Fotografías de eventos, estadios y ceremonias muestran tanto el orgullo nacional como las tensiones políticas de la época, dejando un legado arquitectónico y cultural importante.`,
+    points: [
+      "Visibilidad internacional y modernidad deportiva.",
+      "Legado arquitectónico y organizativo.",
+      "Contrastes entre celebración y conflictos sociales.",
+      "Documentación de un momento cultural trascendente."
+    ],
+    audio: "AUDIO10.mp3"
+  },
+  {
+    title: "Inauguración del Metro (1969)",
+    desc: `La inauguración del Metro en 1969 fue un hito en la movilidad urbana de la Ciudad de México. Fotografías de los primeros trenes, estaciones y autoridades reflejan la transformación de cómo la población se desplazaba y el impacto en la vida cotidiana y el urbanismo.`,
+    points: [
+      "Inicio del transporte masivo en la capital.",
+      "Mejoras en conectividad y acceso a servicios.",
+      "Cambios en la dinámica urbana y laboral.",
+      "Símbolo de modernización en movilidad."
+    ],
+    audio: "AUDIO11.mp3"
+  },
+  {
+    title: "Expropiación Petrolera (1938)",
+    desc: `La expropiación petrolera de 1938 es un momento clave de soberanía económica. Fotografías de la época muestran manifestaciones, actos oficiales y la entrega simbólica de instalaciones; estos registros visuales permiten entender el alcance político y social de la medida.`,
+    points: [
+      "Nacionalización de la industria petrolera en 1938.",
+      "Relevancia para la soberanía económica del país.",
+      "Actos públicos y símbolo de unidad nacional.",
+      "Importancia para la política y la economía mexicana."
+    ],
+    audio: "AUDIO12.mp3"
+  },
+  {
+    title: "Primera Televisión en México (1950)",
+    desc: `Las primeras transmisiones televisivas transformaron los modos de comunicación y consumo cultural en México. Fotografías de estudios, cámaras y presentadores documentan los comienzos de una era audiovisual que moldeó la opinión pública y la industria del entretenimiento.`,
+    points: [
+      "Aparición de un nuevo medio masivo: la televisión.",
+      "Transformación en la difusión de noticias y cultura.",
+      "Nuevas formas de consumo y comunicación pública.",
+      "Registro de la industria televisiva emergente."
+    ],
+    audio: "AUDIO13.mp3"
+  },
+  {
+    title: "Migración México–EUA",
+    desc: `Las fotografías sobre migración muestran trayectos, estaciones y comunidades que experimentaron desplazamientos hacia Estados Unidos. Estas imágenes son valiosas para comprender causas económicas, redes familiares y el impacto cultural y social en las regiones emisoras y receptoras.`,
+    points: [
+      "Factores económicos y laborales detrás de la migración.",
+      "Formas de movilización y rutas migratorias.",
+      "Efectos culturales y familiares en comunidades de origen.",
+      "Documentación visual de procesos sociales transnacionales."
+    ],
+    audio: "AUDIO14.mp3"
+  },
+  {
+    title: "Ejidos después de la Revolución",
+    desc: `Las fotografías sobre la conformación y vida en ejidos muestran cómo la reforma agraria transformó la propiedad y las prácticas agrícolas. Las imágenes permiten observar la organización comunitaria, la creación de parcelas y los retos de la productividad rural tras la Revolución.`,
+    points: [
+      "Implementación de la reforma agraria en comunidades rurales.",
+      "Organización colectiva de la tierra (ejidos).",
+      "Cambios en la producción agrícola y en la vida rural.",
+      "Valor documental para la historia agraria del país."
+    ],
+    audio: "AUDIO15.mp3"
+  },
+  {
+    title: "Huelga estudiantil UNAM (1999)",
+    desc: `La huelga estudiantil de la UNAM en 1999 marcó un hito en la historia universitaria reciente, con movilizaciones por mejores condiciones y reformas. Las fotografías del movimiento capturan asambleas, ocupaciones y la fuerza organizativa de estudiantes por la defensa de la educación pública.`,
+    points: [
+      "Movilización estudiantil por condiciones y cambios institucionales.",
+      "Ocupaciones y asambleas como formas de protesta.",
+      "Importancia de la defensa de la educación pública.",
+      "Registro de la participación juvenil en asuntos públicos."
+    ],
+    audio: "AUDIO16.mp3"
+  },
+  {
+    title: "Primer voto femenino (1955)",
+    desc: `La foto del primer voto femenino simboliza la conquista de un derecho ciudadano tras años de lucha. Estas imágenes dan cuenta del proceso de inclusión política de las mujeres y su impacto en la vida democrática del país, representando un paso clave hacia la igualdad de derechos.`,
+    points: [
+      "Reconocimiento del derecho al voto femenino en 1955.",
+      "Resultado de organización y demandas por derechos civiles.",
+      "Transformación de la participación política femenina.",
+      "Documento visual para la memoria de la igualdad cívica."
+    ],
+    audio: "AUDIO17.mp3"
+  },
+  {
+    title: "Construcción de Ciudad Universitaria",
+    desc: `La construcción de Ciudad Universitaria implicó una obra de gran envergadura arquitectónica y cultural. Fotografías de su edificación muestran obras, obreros y el diseño de un campus que se convertiría en núcleo de docencia, investigación y vida estudiantil representativa del país.`,
+    points: [
+      "Proyecto arquitectónico y urbanístico de gran escala.",
+      "Importancia para la educación superior y la investigación.",
+      "Proceso constructivo y participación técnica.",
+      "Símbolo cultural y académico nacional."
+    ],
+    audio: "AUDIO18.mp3"
+  },
+  {
+    title: "Cine de Oro Mexicano",
+    desc: `Las imágenes del Cine de Oro registran actores, rodajes y estrenos que definieron una época de esplendor en la cinematografía nacional. Estas fotografías son claves para entender la industria, la estética y el papel cultural del cine en la identidad mexicana del siglo XX.`,
+    points: [
+      "Apogeo de la industria cinematográfica nacional.",
+      "Artistas, estudios y producción en auge.",
+      "Influencia cultural nacional e internacional.",
+      "Legado estético e histórico del cine mexicano."
+    ],
+    audio: "AUDIO19.mp3"
+  },
+  {
+    title: "Frida Kahlo en la Casa Azul",
+    desc: `Retratos de Frida Kahlo en la Casa Azul ofrecen una mirada íntima a la artista y su espacio creativo. La casa, su atuendo y objetos personales se vuelven parte del relato visual que permite entender su obra, biografía y la construcción de su imagen pública.`,
+    points: [
+      "Relación entre la vida personal y la obra artística.",
+      "La Casa Azul como espacio de creación y memoria.",
+      "Elementos simbólicos presentes en su entorno.",
+      "Importancia para la historia del arte mexicano."
+    ],
+    audio: "AUDIO20.mp3"
+  }
+];
+
+/* render gallery */
+const gallery = document.getElementById('gallery');
+items.forEach((it, i) => {
+  const div = document.createElement('div');
+  div.className = 'card';
+  div.dataset.id = 'i' + i;
+  div.innerHTML = `
+    <img class="thumb" src="FOTO${i+1}.jpg" alt="${it.title}">
+    <div class="caption">${it.title}</div>
+    <div class="small">(reemplaza FOTO${i+1}.jpg)</div>
+  `;
+  div.addEventListener('click', ()=> openPanel(i));
+  gallery.appendChild(div);
+});
+
+/* open panel & type description */
+const overlay = document.getElementById('overlay');
+const panelImg = document.getElementById('panel-img');
+const panelTitle = document.getElementById('panel-title');
+const panelDesc = document.getElementById('panel-desc');
+const panelPoints = document.getElementById('panel-points');
+const panelAudioSrc = document.getElementById('panel-audio-src');
+const panelAudio = document.getElementById('panel-audio');
+
+let typingTimer = null;
+
+function openPanel(i){
+  overlay.style.display = 'flex';
+  const it = items[i];
+  panelImg.src = `FOTO${i+1}.jpg`;
+  panelTitle.textContent = it.title;
+
+  // clear previous audio and set new
+  panelAudio.pause();
+  panelAudio.currentTime = 0;
+  panelAudioSrc.src = it.audio; // replace with AUDIO#.mp3 or with public URL
+  panelAudio.load();
+
+  // clear and type description (character-by-character)
+  panelDesc.textContent = '';
+  clearInterval(typingTimer);
+  typeText(it.desc, panelDesc, 18); // speed: 18ms per char approx
+
+  // render points
+  panelPoints.innerHTML = '';
+  it.points.forEach(p => {
+    const li = document.createElement('li');
+    li.textContent = p;
+    panelPoints.appendChild(li);
+  });
+
+  // scroll panel to top
+  document.querySelector('.panel').scrollTop = 0;
+}
+
+/* typewriter function for multiline */
+function typeText(text, element, speed){
+  let i = 0;
+  element.textContent = '';
+  typingTimer = setInterval(()=> {
+    i++;
+    element.textContent = text.slice(0,i);
+    // auto-scroll if text too long
+    element.parentElement.scrollTop = element.parentElement.scrollHeight;
+    if(i >= text.length){
+      clearInterval(typingTimer);
+    }
+  }, speed);
+}
+
+function closePanel(e){
+  if(e && e.target !== overlay) return;
+  overlay.style.display = 'none';
+  clearInterval(typingTimer);
+  panelAudio.pause();
+}
+
+/* pause audio button */
+function pauseAudio(){
+  panelAudio.pause();
+}
+
+/* allow ESC to close */
+document.addEventListener('keydown', (e)=> {
+  if(e.key === 'Escape') closePanel();
+});
+</script>
+</body>
+</html>
